@@ -1,2 +1,2 @@
 @echo off
-python "c:\Users\Story Room\rfsl\VideoRec\videorec.py"
+python "c:\Program Files\rfsl\videograbber\videograbber.py"
