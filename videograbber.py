@@ -1,13 +1,19 @@
 """
-    file: videorec.py
+    file: videograbber.py
     author: ed c
+
+    obs websocket doc: https://github.com/obsproject/obs-websocket/blob/4.x-current/docs/generated/protocol.md
 """
 
 # TODO: show elapsed recording time
+# TODO: consider closing preview and using projector instead
+# TODO: show OBS recording time on stop recording (use GetRecordingStatus before stopping)
+# TODO: catch events
 # TODO: installer (installation instructions)
 # TODO: (OBS) create sources, lock configuration files
 # TODO: check, set Sources, Profile, Scene (create standards for these)
-# TODO: QSG
+# TODO: set filename format (SetFilenameFormatting)
+# TODO: QSG (have this app set all parameters so no manual settings are required)
 # TODO: warn on version mismatch for OBS, websockets and simpleobsws
 # TODO: catch errors
 # TODO: automatic file naming
@@ -27,7 +33,7 @@ import subprocess
 from datetime import timedelta
 from os.path import basename
 
-debug = True
+debug = False
 
 expected_obs_version = '27.2.4'
 expected_ws_version = '4.9.1'
@@ -65,6 +71,7 @@ fd_delay = 60000  # 60000 to update available disk space once a minute
 app_status_font = 'Lucida Console'
 app_status_font_size = 10
 
+obs_pswd = 'family'
 obs_version = ''
 obs_status = ''
 ws_version = ''
@@ -120,7 +127,6 @@ def start_recording( ):
     show_recording_status( 'Recording', 'Red' )
     elapsed_time = 1
     show_elapsed_time()
-
     btn_stop[ 'state' ] = NORMAL
 
 async def __stop_recording( ):
@@ -172,11 +178,11 @@ def start_obs( ):
     try:
         subprocess.Popen( obs_command, cwd = obs_directory )
     except:
-        show_app_status( 'ERROR: OBS could not be started', 'Red' )
-        if debug: print( 'ERROR: OBS could not be started' )
         btn_start[ 'state' ] = DISABLED
         btn_stop[ 'state' ] = DISABLED
-    
+        show_app_status( 'ERROR: OBS could not be started', 'Red' )
+        if debug: print( 'ERROR: OBS could not be started' )    
+
 #------
 if __name__ == '__main__':
     vr = Tk()
@@ -249,12 +255,12 @@ if __name__ == '__main__':
     # set up an interface to OBS Studio
     loopy = asyncio.get_event_loop()
 
-    ws = simpleobsws.obsws(host='127.0.0.1', port=4444, password='family', loop=loopy)
-    loopy.run_until_complete( get_obs_info ( ) )
+    ws = simpleobsws.obsws(host='127.0.0.1', port=4444, password=obs_pswd, loop=loopy)
+    loopy.run_until_complete( get_obs_info( ) )
     
     show_app_status( f'obs: {obs_version}, ws: {ws_version}, status: {obs_status}', 'Grey')
 
-    show_disk_space() # re-runs itself every fd_delay milliseconds (default one minute)
+    show_disk_space() # schedules itself to re-run every fd_delay milliseconds (default one minute)
 
     if debug: print( 'all set; entering the tk forever loop' )
 
