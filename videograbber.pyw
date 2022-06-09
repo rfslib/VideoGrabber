@@ -5,9 +5,8 @@
     obs websocket doc: https://github.com/obsproject/obs-websocket/blob/4.x-current/docs/generated/protocol.md
 """
 
-# TODO: show elapsed recording time
+# TODO: use OS instead of OBS to get disk space (so no exception if obs is closed and disk space wants to be updated)
 # TODO: consider closing preview and using projector instead
-# TODO: show OBS recording time on stop recording (use GetRecordingStatus before stopping)
 # TODO: catch events
 # TODO: installer (installation instructions)
 # TODO: (OBS) create sources, lock configuration files
@@ -16,16 +15,20 @@
 # TODO: QSG (have this app set all parameters so no manual settings are required)
 # TODO: warn on version mismatch for OBS, websockets and simpleobsws
 # TODO: catch errors
-# TODO: automatic file naming
-# TODO: show filename of current recording
 # TODO: USB disconnect
 # TODO: OBS status, Popen.wait(), Popen.poll() (https://docs.python.org/3/library/subprocess.html)
+# XXXX: automatic file naming
+# DONE: show elapsed recording time
+# DONE: show OBS recording time on stop recording (use GetRecordingStatus before stopping)
+# DONE: show filename of current recording
 # DONE: show OBS info on F1?
 # DONE: Show available disk space
 # DONE: warn on low disk space
 # DONE: disable buttons when not valid
 
 import asyncio
+from asyncio.windows_events import NULL
+from tabnanny import check
 import simpleobsws
 from tkinter import *
 import psutil
@@ -65,6 +68,7 @@ recording_in_progress = False
 elapsed_time = 0
 elapsed_time_font = 'Lucida Console'
 elapsed_time_fontsize = 9
+elapsed_time_after = NULL
 
 free_disk = 0.0
 free_disk_min = 5000.0
@@ -83,24 +87,24 @@ ws_version = ''
 
 async def get_obs_info( ):
     global obs_version, obs_status, ws_version
-    await ws.connect()
+    ##await ws.connect()
     info = await ws.call( 'GetVersion' )
     if debug: print( f'GetVersion: {info}')
     obs_version = info[ 'obs-studio-version' ]
     ws_version = info[ 'obs-websocket-version' ]
     obs_status = info[ 'status' ]
     await asyncio.sleep( 1 )
-    await ws.disconnect()
+    ##await ws.disconnect()
     if debug: print( f'obs: {obs_version}, ws: {ws_version}, status: {obs_status}')
 
 async def get_obs_disk_space( ):
     global free_disk
-    await ws.connect( )
+    ##await ws.connect( )
     stats = await ws.call( 'GetStats' )
     if debug: print( f'GetStats: {stats}')
     free_disk = float( stats[ 'stats' ][ 'free-disk-space' ] )
     await asyncio.sleep( 1 )
-    await ws.disconnect( )
+    ##await ws.disconnect( )
        
 def show_disk_space( ):
     global free_disk
@@ -113,13 +117,13 @@ def show_disk_space( ):
     vr.after( fd_delay, show_disk_space )
 
 async def __start_recording( ):
-    await ws.connect()
+    ##await ws.connect()
     rc = await ws.call( 'StartRecording' )   
     if debug: print( f'start_recording rc: {rc}')
     await asyncio.sleep( 1 )
     info = await( ws.call( 'GetRecordingStatus' ) )
     recording_filename.set( basename( info[ 'recordingFilename' ] ) )
-    await ws.disconnect( )
+    ##await ws.disconnect( )
 
 def start_recording( ):
     global recording_in_progress, elapsed_time
@@ -133,20 +137,20 @@ def start_recording( ):
     btn_stop[ 'state' ] = NORMAL
 
 async def __stop_recording( ):
-    await ws.connect()
+    ##await ws.connect()
     # TODO: use GetRecordingStatus to get the length of the recording
     info = await( ws.call( 'GetRecordingStatus' ) )
     await asyncio.sleep( 1 )
     if debug: print( f'GetRecordingStatus.recordTimecode {info[ "recordTimecode" ]}')
     recording_time.set( info[ 'recordTimecode' ] )
     rc = await ws.call( 'StopRecording' )    
-    if debug: print( f'stop_recording rc: {rc}')
-    
-    await ws.disconnect( )
+    if debug: print( f'stop_recording rc: {rc}')   
+    ##await ws.disconnect( )
 
 def stop_recording( ):
-    global recording_in_progress
+    global recording_in_progress, elapsed_time_after
     recording_in_progress = False
+    vr.after_cancel( elapsed_time_after ) # stop the elapsed time counter and display
     btn_stop[ 'state' ] = DISABLED
     loopy.run_until_complete( __stop_recording( ) )    
     show_recording_status( 'Stopped', 'Black' )
@@ -158,17 +162,17 @@ def show_recording_status( txt, color ): # Show status message next to buttons
     recording_state_label.config( fg = color )
     recording_state.set( txt )
 
-def show_app_status( txt, color ):
+def show_app_status( txt, color='Grey' ):
     app_status.config( fg = color )
     app_status_text.set( txt )
 
 def show_elapsed_time():
-    global recording_in_progress, elapsed_time
+    global recording_in_progress, elapsed_time, elapsed_time_after
     if debug: print( f'show_elapsed_time: {elapsed_time}')
     if recording_in_progress:
         recording_time.set( str( timedelta( seconds=elapsed_time ) ) )
         elapsed_time += 1
-        vr.after( 1000, show_elapsed_time )
+        elapsed_time_after = vr.after( 1000, show_elapsed_time )
     #else:
         #recording_time.set( '' )
 
@@ -197,24 +201,40 @@ def start_obs( ):
         if debug: print( 'ERROR: OBS could not be started' ) 
         return False
 
+def check_obs( ):
+    # if OBS isn't running, start it
+    if not is_process_running( 'obs64.exe' ):
+        if( start_obs() ):
+            show_app_status( 'OBS is running' )
+            return True
+        else:
+            show_app_status( 'ERROR: OBS could not be started', 'Red')
+            btn_start[ 'state' ] = DISABLED
+            btn_stop[ 'state' ] = DISABLED
+            return False
+    else:
+        return True
+        
+
 async def start_obs_projector( ):
-    await ws.connect()
+    ##await ws.connect()
     rc = await ws.call( 'OpenProjector' )   
     if debug: print( f'OpenProjector rc: {rc}')
-    await ws.disconnect( )
+    ##await ws.disconnect( )
 
 async def __configure_obs( ):
-    await ws.connect()
+    ##await ws.connect()
     #rc = await ws.call( 'SetFilenameFormatting' ) 
     #if debug: print( f'SetFilenameFormatting: {rc}') 
     # TODO: GetSourcesList, CreateSource, SetVolume, SetSourceSettings, SetCurrentProfile, ListProfiles, GetRecordingStatus, SetRecordingFolder, SetCurrentScene, CreateScene,  
     await asyncio.sleep( 1 )
-    await ws.disconnect( )
-    pass
+    ##await ws.disconnect( )
 
 def configure_obs( ):
     loopy.run_until_complete( __configure_obs( ) )
-    pass
+
+async def on_obs_event( data ):
+    print( f'OBS Event: \'{data["update-type"]}\', Raw data: {data}')
 
 def log_callback( ): 
     pass  
@@ -293,22 +313,15 @@ if __name__ == '__main__':
 
     vr.update()
 
-    # if OBS isn't running, start it
-    if not is_process_running( 'obs64.exe' ):
-        obs_running = start_obs()
-
-    if not obs_running:
-        show_app_status( 'ERROR: OBS could not be started', 'Red')
-        btn_start[ 'state' ] = DISABLED
-        btn_stop[ 'state' ] = DISABLED
-    else:
-
+    if( check_obs( ) ): # if OBS start ok, then we can proceed
         # set up an interface to OBS Studio
         loopy = asyncio.get_event_loop()
 
         ws = simpleobsws.obsws(host='127.0.0.1', port=4444, password=obs_pswd, loop=loopy)
+        loopy.run_until_complete( ws.connect() )
+        ws.register( on_obs_event )
+
         loopy.run_until_complete( get_obs_info( ) )
-        
         show_app_status( f'obs: {obs_version}, ws: {ws_version}, status: {obs_status}', 'Grey')
 
         vr.update()
@@ -316,7 +329,9 @@ if __name__ == '__main__':
         show_disk_space() # schedules itself to re-run every fd_delay milliseconds (default one minute)
 
         #loopy.run_until_complete( start_obs_projector( ) )
-
+        
         if debug: print( 'all set; entering the tk forever loop' )
+    else:
+        show_app_status( 'ERROR: OBS could not be started. Restart me.', 'Red')
 
     vr.mainloop()
