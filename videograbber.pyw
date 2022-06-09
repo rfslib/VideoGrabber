@@ -5,6 +5,7 @@
     obs websocket doc: https://github.com/obsproject/obs-websocket/blob/4.x-current/docs/generated/protocol.md
 """
 
+# TODO: OBS Event: 'SourceDestroyed', Raw data: {'sourceKind': 'scene', 'sourceName': 'Scene', 'sourceType': 'scene', 'update-type': 'SourceDestroyed'}: close app
 # TODO: use OS instead of OBS to get disk space (so no exception if obs is closed and disk space wants to be updated)
 # TODO: consider closing preview and using projector instead
 # TODO: catch events
@@ -235,6 +236,12 @@ def configure_obs( ):
 
 async def on_obs_event( data ):
     print( f'OBS Event: \'{data["update-type"]}\', Raw data: {data}')
+    if data[ 'update-type' ] == 'SourceDestroyed':
+        print( 'OBS closed, forcing exit' )
+        show_app_status( 'OBS closed, forcing exit' )
+        await asyncio.sleep( 3 )
+        vr.destroy()
+        exit( )
 
 def log_callback( ): 
     pass  
