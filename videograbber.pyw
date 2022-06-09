@@ -33,7 +33,7 @@ import subprocess
 from datetime import timedelta
 from os.path import basename
 
-debug = False
+debug = True
 
 expected_obs_version = '27.2.4'
 expected_ws_version = '4.9.1'
@@ -47,6 +47,7 @@ bg_alpha = 0.95
 
 obs_command = r'C:\Program Files\obs-studio\bin\64bit\obs64.exe'
 obs_directory = r'C:\Program Files\obs-studio\bin\64bit'
+obs_startup_parms = r'--minimize-to-tray'
 
 btn_font = 'Lucida Console'
 btn_font_size = 16
@@ -185,14 +186,22 @@ def is_process_running( processName ): # https://thispointer.com/python-check-if
             return False
 
 def start_obs( ):
-    global obs_command, obs_directory
+    global obs_command, obs_directory, obs_startup_parms
     try:
         subprocess.Popen( obs_command, cwd = obs_directory )
+        return True
     except:
         btn_start[ 'state' ] = DISABLED
         btn_stop[ 'state' ] = DISABLED
         show_app_status( 'ERROR: OBS could not be started', 'Red' )
         if debug: print( 'ERROR: OBS could not be started' ) 
+        return False
+
+async def start_obs_projector( ):
+    await ws.connect()
+    rc = await ws.call( 'OpenProjector' )   
+    if debug: print( f'OpenProjector rc: {rc}')
+    await ws.disconnect( )
 
 async def __configure_obs( ):
     await ws.connect()
@@ -286,20 +295,28 @@ if __name__ == '__main__':
 
     # if OBS isn't running, start it
     if not is_process_running( 'obs64.exe' ):
-        start_obs()
+        obs_running = start_obs()
 
-    # set up an interface to OBS Studio
-    loopy = asyncio.get_event_loop()
+    if not obs_running:
+        show_app_status( 'ERROR: OBS could not be started', 'Red')
+        btn_start[ 'state' ] = DISABLED
+        btn_stop[ 'state' ] = DISABLED
+    else:
 
-    ws = simpleobsws.obsws(host='127.0.0.1', port=4444, password=obs_pswd, loop=loopy)
-    loopy.run_until_complete( get_obs_info( ) )
-    
-    show_app_status( f'obs: {obs_version}, ws: {ws_version}, status: {obs_status}', 'Grey')
+        # set up an interface to OBS Studio
+        loopy = asyncio.get_event_loop()
 
-    vr.update()
+        ws = simpleobsws.obsws(host='127.0.0.1', port=4444, password=obs_pswd, loop=loopy)
+        loopy.run_until_complete( get_obs_info( ) )
+        
+        show_app_status( f'obs: {obs_version}, ws: {ws_version}, status: {obs_status}', 'Grey')
 
-    show_disk_space() # schedules itself to re-run every fd_delay milliseconds (default one minute)
+        vr.update()
 
-    if debug: print( 'all set; entering the tk forever loop' )
+        show_disk_space() # schedules itself to re-run every fd_delay milliseconds (default one minute)
+
+        #loopy.run_until_complete( start_obs_projector( ) )
+
+        if debug: print( 'all set; entering the tk forever loop' )
 
     vr.mainloop()
