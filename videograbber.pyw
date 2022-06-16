@@ -5,10 +5,13 @@
     obs websocket doc: https://github.com/obsproject/obs-websocket/blob/4.x-current/docs/generated/protocol.md
 """
 
+# TODO: Configuration file (use videograbber.json)
+# TODO: Consider: start OBS (shell:startup) so it can't be changed by user/patron (but if it reboots...): start/stop a projector
 # TODO: OBS Event: 'SourceDestroyed', Raw data: {'sourceKind': 'scene', 'sourceName': 'Scene', 'sourceType': 'scene', 'update-type': 'SourceDestroyed'}: close app
 # TODO: use OS instead of OBS to get disk space (so no exception if obs is closed and disk space wants to be updated)
+# TODO: capture OS events (i.e., close app, etc.)
 # TODO: consider closing preview and using projector instead
-# TODO: catch events
+# TODO: catch OBS events
 # TODO: installer (installation instructions)
 # TODO: (OBS) create sources, lock configuration files
 # TODO: check, set Sources, Profile, Scene (create standards for these)
@@ -36,55 +39,63 @@ import psutil
 import subprocess
 from datetime import timedelta
 from os.path import basename
+from time import sleep
 
 debug = True
+
+vr_version = '0.6'
+
+obs_version = ''
+obs_status = ''
+ws_version = ''
 
 expected_obs_version = '27.2.4'
 expected_ws_version = '4.9.1'
 expected_simpleobsws_version = '1.1'
 
+
 vr_title = 'Riverton FamilySearch Library Video Grabber'
-vr_geometry = '500x180+48+48'
+vr_geometry = '500x220+48+48'
+
+obs_pswd = 'family'
 
 bg_color = 'SystemButtonFace'
 bg_alpha = 0.95
+
+font_family = 'Consolas'
 
 obs_command = r'C:\Program Files\obs-studio\bin\64bit\obs64.exe'
 obs_directory = r'C:\Program Files\obs-studio\bin\64bit'
 obs_startup_parms = r'--minimize-to-tray'
 
-btn_font = 'Lucida Console'
+btn_font = font_family + ' Bold'
 btn_font_size = 16
 btn_height = 3
 btn_width = 8
 
-st_font = 'Lucida Console'
+st_font = font_family + ' Bold'
 st_font_size = 16
 
-
-recording_filename_font = 'Lucida Console'
-recording_filename_fontsize = 9
+recording_filename_font = font_family
+recording_filename_fontsize = 11
 
 recording_in_progress = False
 elapsed_time = 0
-elapsed_time_font = 'Lucida Console'
-elapsed_time_fontsize = 9
+elapsed_time_font = font_family
+elapsed_time_fontsize = 11
 elapsed_time_after = NULL
 
 free_disk = 0.0
 free_disk_min = 5000.0
-fd_font = 'Lucida Console'
+fd_font = font_family
 fd_font_size = 12
 fd_delay = 60000  # 60000 to update available disk space once a minute
 
-app_status_font = 'Lucida Console'
-app_status_font_size = 10
+app_status_font = font_family + ' Bold'
+app_status_font_size = 12
 
-obs_pswd = 'family'
-obs_version = ''
-obs_status = ''
-ws_version = ''
-
+info_line_font = font_family + ' Italic'
+info_line_font_size = 8
 
 async def get_obs_info( ):
     global obs_version, obs_status, ws_version
@@ -96,7 +107,7 @@ async def get_obs_info( ):
     obs_status = info[ 'status' ]
     await asyncio.sleep( 1 )
     ##await ws.disconnect()
-    if debug: print( f'obs: {obs_version}, ws: {ws_version}, status: {obs_status}')
+    if debug: print( f'vr: {vr_version}, obs: {obs_version}, ws: {ws_version}, status: {obs_status}')
 
 async def get_obs_disk_space( ):
     global free_disk
@@ -155,7 +166,7 @@ def stop_recording( ):
     btn_stop[ 'state' ] = DISABLED
     loopy.run_until_complete( __stop_recording( ) )    
     show_recording_status( 'Stopped', 'Black' )
-    show_app_status( f'File "{recording_filename.get()}" saved to the desktop', 'Grey' )
+    show_app_status( f'File "{recording_filename.get()}" saved to the desktop', 'DarkGreen' )
     btn_start[ 'state' ] = NORMAL
 
 
@@ -183,8 +194,10 @@ def is_process_running( processName ): # https://thispointer.com/python-check-if
     for proc in psutil.process_iter(): #Iterate over the all the running processes
         try:
             if processName.lower() in proc.name().lower(): # Check if process name contains the given name string
+                if debug: print( f'{processName} is running')
                 return True
         except (psutil.NoSuchProcess, psutil.AccessDenied):
+            if debug: print( f'{processName} NOT running')
             return False
         except (psutil.ZombieProcess):
             # TODO: need to kill it
@@ -193,7 +206,8 @@ def is_process_running( processName ): # https://thispointer.com/python-check-if
 def start_obs( ):
     global obs_command, obs_directory, obs_startup_parms
     try:
-        subprocess.Popen( obs_command, cwd = obs_directory )
+        rc = subprocess.Popen( obs_command, cwd = obs_directory )
+        if debug: print( f'Popen succeeded, returning {rc}')
         return True
     except:
         btn_start[ 'state' ] = DISABLED
@@ -254,7 +268,7 @@ if __name__ == '__main__':
     vr.geometry( vr_geometry )
     vr.resizable( False, False )
     vr.title( vr_title )
-    vr.iconbitmap( 'VideoRec.ico' )  
+    vr.iconbitmap( 'VideoGrabberIcon.ico' )  
 
     # frame for start button
     fr1 = Frame( master=vr, padx = 8, pady = 8 )
@@ -309,6 +323,7 @@ if __name__ == '__main__':
     disk_space_text = StringVar()
     ds = Label( fr3, textvariable=disk_space_text, font=( fd_font, fd_font_size ), anchor='w' )
     ds.grid( sticky='w')
+    ds.config( fg='Black' )
     #if debug: print( f'default background color: {ds.cget( "background" )}')
 
     # frame/label for app status
@@ -318,18 +333,25 @@ if __name__ == '__main__':
     app_status = Label( fr3, textvariable=app_status_text, font=( app_status_font, app_status_font_size ), anchor='w' )
     app_status.grid( sticky='w' )
 
+    info_line_frame = Frame( master=vr, padx = 8, pady = 8 )
+    info_line_frame.grid( row = 5, column=0, columnspan=3, sticky='w' )
+    info_line_text = StringVar()
+    info_line = Label( info_line_frame, textvariable=info_line_text, font=( info_line_font, info_line_font_size ) )
+    info_line.grid( sticky='' )
+
     vr.update()
+
+    loopy = asyncio.get_event_loop()
 
     if( check_obs( ) ): # if OBS start ok, then we can proceed
         # set up an interface to OBS Studio
-        loopy = asyncio.get_event_loop()
-
         ws = simpleobsws.obsws(host='127.0.0.1', port=4444, password=obs_pswd, loop=loopy)
         loopy.run_until_complete( ws.connect() )
         ws.register( on_obs_event )
 
         loopy.run_until_complete( get_obs_info( ) )
-        show_app_status( f'obs: {obs_version}, ws: {ws_version}, status: {obs_status}', 'Grey')
+        info_line.config( fg='Grey')
+        info_line_text.set( f'vr: {vr_version}, obs: {obs_version}, ws: {ws_version}, status: {obs_status}' )
 
         vr.update()
 
@@ -340,5 +362,9 @@ if __name__ == '__main__':
         if debug: print( 'all set; entering the tk forever loop' )
     else:
         show_app_status( 'ERROR: OBS could not be started. Restart me.', 'Red')
+        vr.update()
+        sleep( 8 )
+        vr.destroy()
+        exit( 17 )
 
     vr.mainloop()
