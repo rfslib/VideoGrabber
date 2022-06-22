@@ -6,7 +6,6 @@
 """
 
 # TODO: Configuration file (use videograbber.json)
-# TODO: Consider: start OBS (shell:startup) so it can't be changed by user/patron (but if it reboots...): start/stop a projector
 # TODO: OBS Event: 'SourceDestroyed', Raw data: {'sourceKind': 'scene', 'sourceName': 'Scene', 'sourceType': 'scene', 'update-type': 'SourceDestroyed'}: close app
 # TODO: use OS instead of OBS to get disk space (so no exception if obs is closed and disk space wants to be updated)
 # TODO: capture OS events (i.e., close app, etc.)
@@ -21,6 +20,7 @@
 # TODO: catch errors
 # TODO: USB disconnect
 # TODO: OBS status, Popen.wait(), Popen.poll() (https://docs.python.org/3/library/subprocess.html)
+# XXXX: Consider: start OBS (shell:startup) so it can't be changed by user/patron (but if it reboots...): start/stop a projector
 # XXXX: automatic file naming
 # DONE: show elapsed recording time
 # DONE: show OBS recording time on stop recording (use GetRecordingStatus before stopping)
@@ -45,6 +45,28 @@ debug = True
 
 vr_version = '0.6'
 
+parms = {
+    # main window
+    'icon' : 'VideoGrabberIcon.ico',
+    'vr_title' : 'Riverton FamilySearch Library Video Grabber',
+    'vr_geometry' : '500x220+48+48',
+    'font_family' : 'Consolas',
+    'font_bold' : 'Consolas Bold',
+    'font_italic' : 'Consolas Italic',
+
+    # OBS
+    'obs_processname' : 'obs64.exe',
+    'obs_command' : r'C:\Program Files\obs-studio\bin\64bit\obs64.exe',
+    'obs_directory' : r'C:\Program Files\obs-studio\bin\64bit',
+    'obs_startup_parms' : r'--minimize-to-tray',
+
+    # OBS interface
+    'obs_pswd' : 'family',
+    'obs_host' : '127.0.0.1',
+    'obs_port' : 4444,
+
+}
+
 obs_version = ''
 obs_status = ''
 ws_version = ''
@@ -54,51 +76,48 @@ expected_ws_version = '4.9.1'
 expected_simpleobsws_version = '1.1'
 
 
-vr_title = 'Riverton FamilySearch Library Video Grabber'
-vr_geometry = '500x220+48+48'
-
 obs_pswd = 'family'
 
 bg_color = 'SystemButtonFace'
 bg_alpha = 0.95
 
-font_family = 'Consolas'
+#parms['font_family'] = 'Consolas'
 
 obs_command = r'C:\Program Files\obs-studio\bin\64bit\obs64.exe'
 obs_directory = r'C:\Program Files\obs-studio\bin\64bit'
 obs_startup_parms = r'--minimize-to-tray'
 
-btn_font = font_family + ' Bold'
+btn_font = parms['font_family'] + ' Bold'
 btn_font_size = 16
 btn_height = 3
 btn_width = 8
 
-st_font = font_family + ' Bold'
+st_font = parms['font_family'] + ' Bold'
 st_font_size = 16
 
-recording_filename_font = font_family
+recording_filename_font = parms['font_family']
 recording_filename_fontsize = 11
 
 recording_in_progress = False
 elapsed_time = 0
-elapsed_time_font = font_family
+elapsed_time_font = parms['font_family']
 elapsed_time_fontsize = 11
 elapsed_time_after = NULL
 
 free_disk = 0.0
 free_disk_min = 5000.0
-fd_font = font_family
+fd_font = parms['font_family']
 fd_font_size = 12
 fd_delay = 60000  # 60000 to update available disk space once a minute
 
-app_status_font = font_family + ' Bold'
+app_status_font = parms['font_family'] + ' Bold'
 app_status_font_size = 12
 
-info_line_font = font_family + ' Italic'
+info_line_font = parms['font_family'] + ' Italic'
 info_line_font_size = 8
 
 async def get_obs_info( ):
-    global obs_version, obs_status, ws_version
+    global parms, obs_version, ws_version, obs_status
     ##await ws.connect()
     info = await ws.call( 'GetVersion' )
     if debug: print( f'GetVersion: {info}')
@@ -204,9 +223,9 @@ def is_process_running( processName ): # https://thispointer.com/python-check-if
             return False
 
 def start_obs( ):
-    global obs_command, obs_directory, obs_startup_parms
+    global parms
     try:
-        rc = subprocess.Popen( obs_command, cwd = obs_directory )
+        rc = subprocess.Popen(parms['obs_command'], cwd = parms['obs_directory'])
         if debug: print( f'Popen succeeded, returning {rc}')
         return True
     except:
@@ -217,8 +236,9 @@ def start_obs( ):
         return False
 
 def check_obs( ):
+    global parms
     # if OBS isn't running, start it
-    if not is_process_running( 'obs64.exe' ):
+    if not is_process_running( parms['obs_processname'] ):
         if( start_obs() ):
             show_app_status( 'OBS is running' )
             return True
@@ -265,9 +285,9 @@ if __name__ == '__main__':
     vr = Tk()
     vr.attributes( '-alpha', bg_alpha ) # set transparency
     vr.attributes( '-topmost', 1 ) # force it to stay on top (so user doesn't lose it)
-    vr.geometry( vr_geometry )
+    vr.geometry(parms['vr_geometry'])
     vr.resizable( False, False )
-    vr.title( vr_title )
+    vr.title(parms['vr_title'])
     vr.iconbitmap( 'VideoGrabberIcon.ico' )  
 
     # frame for start button
@@ -345,7 +365,7 @@ if __name__ == '__main__':
 
     if( check_obs( ) ): # if OBS start ok, then we can proceed
         # set up an interface to OBS Studio
-        ws = simpleobsws.obsws(host='127.0.0.1', port=4444, password=obs_pswd, loop=loopy)
+        ws = simpleobsws.obsws(host=parms['obs_host'], port=parms['obs_port'], password=parms['obs_pswd'], loop=loopy)
         loopy.run_until_complete( ws.connect() )
         ws.register( on_obs_event )
 
