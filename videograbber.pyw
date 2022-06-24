@@ -31,8 +31,6 @@
 # DONE: disable buttons when not valid
 
 import asyncio
-from asyncio.windows_events import NULL
-from tabnanny import check
 import simpleobsws
 from tkinter import *
 import psutil
@@ -49,7 +47,7 @@ parms = {
     # main window
     'icon' : 'VideoGrabberIcon.ico',
     'vr_title' : 'Riverton FamilySearch Library Video Grabber',
-    'vr_geometry' : '500x220+48+48',
+    'vr_geometry' : '500x220+72+32',
     'font_family' : 'Consolas',
     'font_bold' : 'Consolas Bold',
     'font_italic' : 'Consolas Italic',
@@ -58,7 +56,7 @@ parms = {
     'obs_processname' : 'obs64.exe',
     'obs_command' : r'C:\Program Files\obs-studio\bin\64bit\obs64.exe',
     'obs_directory' : r'C:\Program Files\obs-studio\bin\64bit',
-    'obs_startup_parms' : r'--minimize-to-tray',
+    'obs_startup_parms' : '--disable-updater', # was r'--always-on-top'
 
     # OBS interface
     'obs_pswd' : 'family',
@@ -102,7 +100,7 @@ recording_in_progress = False
 elapsed_time = 0
 elapsed_time_font = parms['font_family']
 elapsed_time_fontsize = 11
-elapsed_time_after = NULL
+elapsed_time_after = None
 
 free_disk = 0.0
 free_disk_min = 5000.0
@@ -224,8 +222,15 @@ def is_process_running( processName ): # https://thispointer.com/python-check-if
 
 def start_obs( ):
     global parms
+    show_app_status('Starting OBS', 'Black')
+    vr.update()
     try:
-        rc = subprocess.Popen(parms['obs_command'], cwd = parms['obs_directory'])
+        rc = subprocess.Popen([parms['obs_command'], parms['obs_startup_parms']], cwd = parms['obs_directory'])
+        show_app_status('Waiting for OBS to be ready', 'Black')
+        vr.update()
+        sleep(4) # 3 works, but barely; using 4 in case of a Blue Moon
+        show_app_status('')
+        vr.update()
         if debug: print( f'Popen succeeded, returning {rc}')
         return True
     except:
