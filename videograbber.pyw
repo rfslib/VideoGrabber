@@ -3,7 +3,7 @@
     author: ed c
 
     obs websocket doc: https://github.com/obsproject/obs-websocket/blob/4.x-current/docs/generated/protocol.md
-    simple xface to obs websocket: https://github.com/IRLToolkit/simpleobswstree/simpleobsws-4.x
+    simple xface to obs websocket: https://github.com/IRLToolkit/simpleobsws/tree/simpleobsws-4.x
     starting a process from Python: https://docs.python.org/3/library/subprocess.html
 """
 
@@ -41,14 +41,15 @@ import subprocess
 from datetime import timedelta
 from os.path import basename
 from time import sleep
-import vg_parms
-
+#import vg_parms
+import vg_parm
 debug = False
 
-parms = vg_parms.VG_Parms
+
+parms = vg_parm.VG_Parm()
+#parms = vg_parms.VG_Parms
 
 vr_version = '0.6'
-
 
 # run-time variables
 recording_in_progress = False
@@ -83,12 +84,12 @@ async def get_obs_disk_space( ):
 def show_disk_space( ):
     global free_disk
     loopy.run_until_complete( get_obs_disk_space() )
-    if free_disk < parms['free_disk_min']:
-        ds.config( bg = parms['text_warn_color'] )
+    if free_disk < parms.free_disk_min:
+        ds.config( bg = parms.text_warn_color )
     else:
-        ds.config( bg = parms['bg_color'] )
+        ds.config( bg = parms.bg_color )
     disk_space_text.set( f'Available disk space: {free_disk/1024:.1f}G ' )
-    vr.after( parms['fd_delay'], show_disk_space )
+    vr.after( parms.fd_delay, show_disk_space )
 
 async def __start_recording( ):
     ##await ws.connect()
@@ -102,10 +103,10 @@ async def __start_recording( ):
 def start_recording( ):
     global recording_in_progress, elapsed_time
     btn_start[ 'state' ] = DISABLED
-    show_app_status( 'Do NOT close OBS: the recording will fail', parms['text_warn_color'] )
+    show_app_status( 'Do NOT close OBS: the recording will fail', parms.text_warn_color )
     recording_in_progress = True
     loopy.run_until_complete( __start_recording( ) )
-    show_recording_status( 'Recording', parms['text_warn_color'] )
+    show_recording_status( 'Recording', parms.text_warn_color )
     elapsed_time = 0
     show_elapsed_time()
     btn_stop[ 'state' ] = NORMAL
@@ -127,8 +128,8 @@ def stop_recording( ):
     vr.after_cancel( elapsed_time_after ) # stop the elapsed time counter and display
     btn_stop[ 'state' ] = DISABLED
     loopy.run_until_complete( __stop_recording( ) )    
-    show_recording_status( 'Stopped', parms['text_info_color'] )
-    show_app_status( f'File "{recording_filename.get()}" saved to the desktop', parms['text_done_color'] )
+    show_recording_status( 'Stopped', parms.text_info_color )
+    show_app_status( f'File "{recording_filename.get()}" saved to the desktop', parms.text_done_color )
     btn_start[ 'state' ] = NORMAL
 
 
@@ -136,7 +137,7 @@ def show_recording_status( txt, color ): # Show status message next to buttons
     recording_state_label.config( fg = color )
     recording_state.set( txt )
 
-def show_app_status( txt, color=parms['text_soft_color'] ):
+def show_app_status( txt, color=parms.text_soft_color ):
     app_status.config( fg = color )
     app_status_text.set( txt )
 
@@ -167,11 +168,11 @@ def is_process_running( processName ): # https://thispointer.com/python-check-if
 
 def start_obs( ):
     global parms
-    show_app_status('Starting OBS', parms['text_info_color'])
+    show_app_status('Starting OBS', parms.text_info_color)
     vr.update()
     try:
-        rc = subprocess.Popen([parms['obs_command'], parms['obs_startup_parms']], cwd = parms['obs_directory'])
-        show_app_status('Waiting for OBS to be ready', parms['text_info_color'])
+        rc = subprocess.Popen([parms.obs_command, parms.obs_startup_parms], cwd = parms.obs_directory)
+        show_app_status('Waiting for OBS to be ready', parms.text_done_color)
         vr.update()
         sleep(4) # 3 works, but barely; using 4 in case of a Blue Moon        
         if debug: print( f'Popen succeeded, returning {rc}')
@@ -183,7 +184,7 @@ def start_obs( ):
 def check_obs( ):
     global parms
     # if OBS isn't running, start it
-    if not is_process_running( parms['obs_processname'] ):
+    if not is_process_running( parms.obs_processname ):
         if( start_obs() ):
             show_app_status('OBS is running')
             vr.update()
@@ -191,7 +192,7 @@ def check_obs( ):
         else:
             btn_start[ 'state' ] = DISABLED
             btn_stop[ 'state' ] = DISABLED
-            show_app_status( 'ERROR: OBS could not be started', parms['text_warn_color'] )
+            show_app_status( 'ERROR: OBS could not be started', parms.text_warn_color )
             vr.update()
             return False
     else:
@@ -232,11 +233,11 @@ def log_callback( ):
 #------
 if __name__ == '__main__':
     vr = Tk()
-    vr.attributes( '-alpha', parms['bg_alpha'] ) # set transparency
+    vr.attributes( '-alpha', parms.bg_alpha ) # set transparency
     vr.attributes( '-topmost', 1 ) # force it to stay on top (so user doesn't lose it)
-    vr.geometry(parms['vr_geometry'])
+    vr.geometry(parms.vr_geometry)
     vr.resizable( False, False )
-    vr.title(parms['vr_title'])
+    vr.title(parms.vr_title)
     vr.iconbitmap( 'VideoGrabberIcon.ico' )  
 
     # frame for start button
@@ -245,11 +246,11 @@ if __name__ == '__main__':
 
     # create 'start' button
     btn_start = Button( fr1, text = 'Record',
-        height=parms['btn_height'], width=parms['btn_width'],
+        height=parms.btn_height, width=parms.btn_width,
         command = start_recording,
         state=DISABLED,
-        font = ( parms['font_bold'], parms['btn_font_size'] ),
-        fg=parms['text_warn_color']
+        font = ( parms.font_bold, parms.btn_font_size ),
+        fg=parms.text_warn_color
         )
     btn_start.grid( row=0, column=0 )
 
@@ -259,10 +260,10 @@ if __name__ == '__main__':
    
     # create 'stop' button
     btn_stop = Button( fr2, text = 'Stop',
-        height=parms['btn_height'], width=parms['btn_width'],
+        height=parms.btn_height, width=parms.btn_width,
         command = stop_recording,
         state = DISABLED,
-        font = ( parms['font_bold'], parms['btn_font_size'] )
+        font = ( parms.font_bold, parms.btn_font_size )
         )
     btn_stop.grid( row=0, column=0 )
 
@@ -270,38 +271,38 @@ if __name__ == '__main__':
     recording_state_frame = Frame( master=vr, padx=8, pady=8 )
     recording_state_frame.grid( row=0, column=2, padx=4, pady=4, sticky='wn')
     recording_state = StringVar()
-    recording_state_label = Label( recording_state_frame, textvariable=recording_state, font=( parms['font_bold'], parms['st_font_size'] ), anchor='w' )
+    recording_state_label = Label( recording_state_frame, textvariable=recording_state, font=( parms.font_bold, parms.st_font_size ), anchor='w' )
     recording_state_label.grid( sticky='w' )
 
     # frame/label for output filename
     recording_filename = StringVar()
-    recording_filename_label = Label( recording_state_frame, textvariable=recording_filename, font=( parms['font_family'], parms['recording_filename_fontsize'] ), anchor='w' )
+    recording_filename_label = Label( recording_state_frame, textvariable=recording_filename, font=( parms.font_family, parms.recording_filename_fontsize ), anchor='w' )
     recording_filename_label.grid( sticky='w')
     
     # frame/label for recording time
     recording_time = StringVar()
-    recording_time_label = Label( recording_state_frame, textvariable=recording_time, font=( parms['font_family'], parms['elapsed_time_fontsize'] ), anchor='w' )
+    recording_time_label = Label( recording_state_frame, textvariable=recording_time, font=( parms.font_family, parms.elapsed_time_fontsize ), anchor='w' )
     recording_time_label.grid( sticky='w' )
 
     # frame/label for disk space
     fr3 = Frame( master=vr, padx = 8, pady = 8 )
     fr3.grid( row = 3, column=0, columnspan=3, sticky='w' )
     disk_space_text = StringVar()
-    ds = Label( fr3, textvariable=disk_space_text, font=( parms['font_family'], parms['fd_font_size'] ), anchor='w' )
+    ds = Label( fr3, textvariable=disk_space_text, font=( parms.font_family, parms.fd_font_size ), anchor='w' )
     ds.grid( sticky='w')
-    ds.config( fg=parms['text_info_color'] )
+    ds.config( fg=parms.text_info_color )
 
     # frame/label for app status
     app_status_frame = Frame( master=vr, padx = 8, pady = 8 )
     app_status_frame.grid( row = 4, column=0, columnspan=3, sticky='w' )
     app_status_text = StringVar()
-    app_status = Label( fr3, textvariable=app_status_text, font=( parms['font_bold'], parms['app_status_font_size'] ), anchor='w' )
+    app_status = Label( fr3, textvariable=app_status_text, font=( parms.font_bold, parms.app_status_font_size ), anchor='w' )
     app_status.grid( sticky='w' )
 
     info_line_frame = Frame( master=vr, padx = 8, pady = 8 )
     info_line_frame.grid( row = 5, column=0, columnspan=3, sticky='w' )
     info_line_text = StringVar()
-    info_line = Label( info_line_frame, textvariable=info_line_text, font=( parms['font_italic'], parms['info_line_font_size'] ) )
+    info_line = Label( info_line_frame, textvariable=info_line_text, font=( parms.font_italic, parms.info_line_font_size ) )
     info_line.grid( sticky='' )
 
     vr.update()
@@ -310,12 +311,12 @@ if __name__ == '__main__':
 
     if( check_obs( ) ): # if OBS start ok, then we can proceed
         # set up an interface to OBS Studio
-        ws = simpleobsws.obsws(host=parms['obs_host'], port=parms['obs_port'], password=parms['obs_pswd'], loop=loopy)
+        ws = simpleobsws.obsws(host=parms.obs_host, port=parms.obs_port, password=parms.obs_pswd, loop=loopy)
         loopy.run_until_complete( ws.connect() )
         ws.register( on_obs_event )
 
         loopy.run_until_complete( get_obs_info( ) )
-        info_line.config( fg=parms['text_soft_color'])
+        info_line.config( fg=parms.text_soft_color)
         info_line_text.set( f'vr: {vr_version}, obs: {obs_version}, ws: {ws_version}, status: {obs_status}' )
 
         vr.update()
@@ -326,7 +327,7 @@ if __name__ == '__main__':
         
         if debug: print( 'all set; entering the tk forever loop' )
     else:
-        show_app_status( 'ERROR: OBS could not be started. Restart me.', parms['text_warn_color'])
+        show_app_status( 'ERROR: OBS could not be started. Restart me.', parms.text_warn_color)
         vr.update()
         sleep( 8 )
         vr.destroy()
