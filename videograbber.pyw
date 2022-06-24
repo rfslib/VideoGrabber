@@ -41,13 +41,12 @@ import subprocess
 from datetime import timedelta
 from os.path import basename
 from time import sleep
-#import vg_parms
 import vg_parm
+from vg_parm import VG_Parm
+
 debug = False
 
-
-parms = vg_parm.VG_Parm()
-#parms = vg_parms.VG_Parms
+parms = VG_Parm()
 
 vr_version = '0.6'
 
@@ -171,8 +170,8 @@ def start_obs( ):
     show_app_status('Starting OBS', parms.text_info_color)
     vr.update()
     try:
-        rc = subprocess.Popen([parms.obs_command, parms.obs_startup_parms], cwd = parms.obs_directory)
-        show_app_status('Waiting for OBS to be ready', parms.text_done_color)
+        rc = subprocess.Popen(parms.obs_command, cwd = parms.obs_directory)
+        show_app_status('Waiting for OBS to be ready', parms.text_info_color)
         vr.update()
         sleep(4) # 3 works, but barely; using 4 in case of a Blue Moon        
         if debug: print( f'Popen succeeded, returning {rc}')

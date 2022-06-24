@@ -28,9 +28,9 @@ class VG_Parm( ):
 
     # OBS
     obs_processname = 'obs64.exe'
-    obs_command = r'C=\Program Files\obs-studio\bin\64bit\obs64.exe'
-    obs_directory = r'C=\Program Files\obs-studio\bin\64bit'
-    obs_startup_parms = r'--disable-updater'
+    obs_command = r'C:\Program Files\obs-studio\bin\64bit\obs64.exe'
+    obs_directory = r'C:\Program Files\obs-studio\bin\64bit'
+    obs_startup_parms = '--disable-updater'
 
     # OBS interface
     obs_pswd = 'family'
