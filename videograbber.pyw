@@ -1,16 +1,15 @@
 """
     file: videograbber.py
-    author: ed c
+    author: rfslib
 
     obs websocket doc: https://github.com/obsproject/obs-websocket/blob/4.x-current/docs/generated/protocol.md
-    simple xface to obs websocket: https://github.com/IRLToolkit/simpleobsws/tree/simpleobsws-4.x
+    simple xface to obs websocket: https://github.com/IRLToolkit/simpleobsws/tree/simpleobsws-4.x (included, since pip installs an incompatible version)
     starting a process from Python: https://docs.python.org/3/library/subprocess.html
+
 """
 
 # TODO: OBS portable mode (config settings are saved in the OBS main folder) see obsproject.com/forum/resources/obs-and-obs-studio-portable-mode-on-windows.359
-# TODO: Configuration file (use videograbber.json)
 # TODO: OBS Event: 'SourceDestroyed', Raw data: {'sourceKind': 'scene', 'sourceName': 'Scene', 'sourceType': 'scene', 'update-type': 'SourceDestroyed'}: close app
-# TODO: use OS instead of OBS to get disk space (so no exception if obs is closed and disk space wants to be updated)
 # TODO: capture OS events (i.e., close app, etc.)
 # TODO: consider closing preview and using projector instead
 # TODO: catch OBS events
@@ -25,6 +24,8 @@
 # XXXX: OBS status, Popen.wait(), Popen.poll() (https://docs.python.org/3/library/subprocess.html)
 # XXXX: Consider: start OBS (shell:startup) so it can't be changed by user/patron (but if it reboots...): start/stop a projector
 # XXXX: automatic file naming
+# DONE: use OS instead of OBS to get disk space (so no exception if obs is closed and disk space wants to be updated)
+# DONE: Configuration file (use videograbber.json)
 # DONE: show elapsed recording time
 # DONE: show OBS recording time on stop recording (use GetRecordingStatus before stopping)
 # DONE: show filename of current recording
@@ -71,18 +72,16 @@ async def get_obs_info( ):
     ##await ws.disconnect()
     if debug: print( f'vr: {vr_version}, obs: {obs_version}, ws: {ws_version}, status: {obs_status}')
 
-async def get_obs_disk_space( ):
-    global free_disk
-    ##await ws.connect( )
-    stats = await ws.call( 'GetStats' )
-    if debug: print( f'GetStats: {stats}')
-    free_disk = float( stats[ 'stats' ][ 'free-disk-space' ] )
-    await asyncio.sleep( 1 )
-    ##await ws.disconnect( )
+#async def get_obs_stats( ):
+#    ##await ws.connect( )
+#    stats = await ws.call( 'GetStats' )
+#    if debug: print( f'GetStats: {stats}')
+#    await asyncio.sleep( 1 )
+#    ##await ws.disconnect( )
        
 def show_disk_space( ):
     global free_disk
-    loopy.run_until_complete( get_obs_disk_space() )
+    free_disk = psutil.disk_usage('.').free / 1024 / 1024
     if free_disk < parms.free_disk_min:
         ds.config( bg = parms.text_warn_color )
     else:

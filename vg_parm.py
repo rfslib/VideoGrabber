@@ -1,3 +1,10 @@
+"""
+    file: vg_parm.py
+    author: rfslib
+
+    purpose: configuration paramateres for videograbber.pyw
+"""
+
 # Edit NOT unless you're willing to spend whatever time it takes to fix it
 class VG_Parm( ):
     # control window attributes
@@ -31,6 +38,7 @@ class VG_Parm( ):
     obs_command = r'C:\Program Files\obs-studio\bin\64bit\obs64.exe'
     obs_directory = r'C:\Program Files\obs-studio\bin\64bit'
     obs_startup_parms = '--disable-updater'
+    obs_output_destination = r'C:\Users'
 
     # OBS interface
     obs_pswd = 'family'
