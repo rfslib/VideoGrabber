@@ -104,6 +104,7 @@ async def __start_recording( ):
 def start_recording( ):
     global recording_in_progress, elapsed_time
     btn_start[ 'state' ] = DISABLED
+    show_recording_status( 'Starting', parms.text_info_color )
     show_app_status( 'Do NOT close OBS: the recording will fail', parms.text_warn_color )
     recording_in_progress = True
     loopy.run_until_complete( __start_recording( ) )
@@ -120,23 +121,25 @@ async def __stop_recording( ):
     if debug: print( f'GetRecordingStatus.recordTimecode {info[ "recordTimecode" ]}')
     recording_time.set( info[ 'recordTimecode' ] )
     rc = await ws.call( 'StopRecording' )    
+    await asyncio.sleep(1)
     if debug: print( f'stop_recording rc: {rc}')   
     ##await ws.disconnect( )
 
 def stop_recording( ):
     global recording_in_progress, elapsed_time_after
     recording_in_progress = False
+    show_recording_status('Stopping', parms.text_info_color)
     vr.after_cancel( elapsed_time_after ) # stop the elapsed time counter and display
     btn_stop[ 'state' ] = DISABLED
     loopy.run_until_complete( __stop_recording( ) )    
-    show_recording_status( 'Stopped', parms.text_info_color )
+    show_recording_status('Stopped', parms.text_info_color)
     show_app_status( f'File "{recording_filename.get()}" saved to the desktop', parms.text_done_color )
     btn_start[ 'state' ] = NORMAL
-
 
 def show_recording_status( txt, color ): # Show status message next to buttons
     recording_state_label.config( fg = color )
     recording_state.set( txt )
+    vr.update()
 
 def show_app_status( txt, color=parms.text_soft_color ):
     app_status.config( fg = color )
@@ -152,7 +155,6 @@ def show_elapsed_time():
         elapsed_time_after = vr.after( 1000, show_elapsed_time )
     #else:
         #recording_time.set( '' )
-
 
 def is_process_running(processName): # https://thispointer.com/python-check-if-a-process-is-running-by-name-and-find-its-process-id-pid/
     ''' Check if there is any running process that contains the given name processName. '''
@@ -239,9 +241,13 @@ def close_program():
     if recording_in_progress:
         if messagebox.askokcancel("Quit", "Do you want to quit? This will stop the recording."):
             stop_recording()
+            loopy.run_until_complete(ws.disconnect())
+            loopy.close()
             vr.destroy()
     else:
         if messagebox.askokcancel("Quit", "Do you want to close the program?"):
+            loopy.run_until_complete(ws.disconnect())
+            loopy.close()
             vr.destroy()
 
 #---------------------------------------------------------------------------------------------------------------------
