@@ -36,9 +36,9 @@
 # DONE: disable buttons when not valid
 
 import asyncio
-import cmd
 import simpleobsws
 from tkinter import *
+from tkinter import messagebox
 import psutil
 import subprocess
 from datetime import timedelta
@@ -83,6 +83,7 @@ async def get_obs_info( ):
        
 def show_disk_space( ):
     global free_disk
+    vr.deiconify()
     free_disk = psutil.disk_usage('.').free / 1024 / 1024
     if free_disk < parms.free_disk_min:
         ds.config( bg = parms.text_warn_color )
@@ -140,6 +141,7 @@ def show_recording_status( txt, color ): # Show status message next to buttons
 def show_app_status( txt, color=parms.text_soft_color ):
     app_status.config( fg = color )
     app_status_text.set( txt )
+    vr.update()
 
 def show_elapsed_time():
     global recording_in_progress, elapsed_time, elapsed_time_after
@@ -169,11 +171,9 @@ def is_process_running(processName): # https://thispointer.com/python-check-if-a
 def start_obs( ):
     global parms
     show_app_status('Starting OBS', parms.text_info_color)
-    vr.update()
     try:
         rc = subprocess.Popen(parms.obs_command, cwd = parms.obs_directory)
         show_app_status('Waiting for OBS to be ready', parms.text_info_color)
-        vr.update()
         sleep(4) # 3 works, but barely; using 4 in case of a Blue Moon        
         if debug: print( f'Popen succeeded, returning {rc}')
         return True
@@ -187,17 +187,14 @@ def check_obs( ):
     if not is_process_running( parms.obs_processname ):
         if( start_obs() ):
             show_app_status('OBS is running')
-            vr.update()
             return True
         else:
             btn_start[ 'state' ] = DISABLED
             btn_stop[ 'state' ] = DISABLED
             show_app_status( 'ERROR: OBS could not be started', parms.text_warn_color )
-            vr.update()
             return False
     else:
         show_app_status('OBS is running')
-        vr.update()
         return True
         
 
@@ -237,7 +234,17 @@ def is_running(script): #https://discuss.dizzycoding.com/check-to-see-if-python-
                 return True
     return False
 
-#------
+def close_program():
+    vr.deiconify()
+    if recording_in_progress:
+        if messagebox.askokcancel("Quit", "Do you want to quit? This will stop the recording."):
+            stop_recording()
+            vr.destroy()
+    else:
+        if messagebox.askokcancel("Quit", "Do you want to close the program?"):
+            vr.destroy()
+
+#---------------------------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
 
     # first, check if another instance is already running
@@ -245,15 +252,18 @@ if __name__ == '__main__':
         if debug: print('videograbber is already running')
         exit(1)
 
-    # OK, we're in; build the window
-    vr = Tk()
+    # OK, we're in; build the window  
+    vr = Tk()  
+    # #vr.iconbitmap('VideoGrabberIcon.ico')
+    vr.iconbitmap(default='VideoGrabberIcon.ico')
     vr.attributes( '-alpha', parms.bg_alpha ) # set transparency
     vr.attributes( '-topmost', 1 ) # force it to stay on top (so user doesn't lose it)
     vr.geometry(parms.vr_geometry)
     vr.resizable( False, False )
     vr.title(parms.vr_title)
-    #vr.iconbitmap('VideoGrabberIcon.ico')
-    vr.iconbitmap(default='VideoGrabberIcon.ico')
+    vr.wm_deiconify()
+    vr.protocol("WM_DELETE_WINDOW", close_program)
+
 
     # frame for start button
     fr1 = Frame( master=vr, padx = 8, pady = 8 )
@@ -322,8 +332,8 @@ if __name__ == '__main__':
 
     vr.update()
 
-    #loopy = asyncio.get_event_loop()
-    loopy = asyncio.new_event_loop()
+    loopy = asyncio.get_event_loop()
+    # TODO: loopy = asyncio.new_event_loop()
 
     if( check_obs( ) ): # if OBS start ok, then we can proceed
         # set up an interface to OBS Studio
@@ -344,7 +354,6 @@ if __name__ == '__main__':
         if debug: print( 'all set; entering the tk mainloop' )
     else:
         show_app_status( 'ERROR: OBS could not be started. Restart me.', parms.text_warn_color)
-        vr.update()
         sleep( 8 )
         vr.destroy()
         exit( 17 )

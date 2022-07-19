@@ -29,7 +29,7 @@ class VG_Parm( ):
     elapsed_time_fontsize = 11
     free_disk_min = 5000.0 # minimum available space on disk before displaying warning
     fd_font_size = 12
-    fd_delay = 60000  # 60000 to update available disk space once a minute
+    fd_delay = 20000 # 60000  # 60000 to update available disk space once a minute
     app_status_font_size = 12
     info_line_font_size = 8
 
