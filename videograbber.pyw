@@ -5,6 +5,7 @@
     obs websocket doc: https://github.com/obsproject/obs-websocket/blob/4.x-current/docs/generated/protocol.md
     simple xface to obs websocket: https://github.com/IRLToolkit/simpleobsws/tree/simpleobsws-4.x (included, since pip installs an incompatible version)
     starting a process from Python: https://docs.python.org/3/library/subprocess.html
+    icon: https://stackoverflow.com/questions/14900510/changing-the-application-and-taskbar-icon-python-tkinter
 
 """
 
@@ -35,14 +36,15 @@
 # DONE: disable buttons when not valid
 
 import asyncio
+import cmd
 import simpleobsws
 from tkinter import *
 import psutil
 import subprocess
 from datetime import timedelta
+from os import getpid
 from os.path import basename
 from time import sleep
-import vg_parm
 from vg_parm import VG_Parm
 
 debug = False
@@ -150,7 +152,7 @@ def show_elapsed_time():
         #recording_time.set( '' )
 
 
-def is_process_running( processName ): # https://thispointer.com/python-check-if-a-process-is-running-by-name-and-find-its-process-id-pid/
+def is_process_running(processName): # https://thispointer.com/python-check-if-a-process-is-running-by-name-and-find-its-process-id-pid/
     ''' Check if there is any running process that contains the given name processName. '''
     for proc in psutil.process_iter(): #Iterate over the all the running processes
         try:
@@ -228,15 +230,30 @@ async def on_obs_event( data ):
 def log_callback( ): 
     pass  
 
+def is_running(script): #https://discuss.dizzycoding.com/check-to-see-if-python-script-is-running/
+    for q in psutil.process_iter():
+        if q.name().startswith('python'):
+            if (len(q.cmdline())>1) and (script in q.cmdline()[1]) and (q.pid != getpid()):
+                return True
+    return False
+
 #------
 if __name__ == '__main__':
+
+    # first, check if another instance is already running
+    if is_running('videograbber'): #
+        if debug: print('videograbber is already running')
+        exit(1)
+
+    # OK, we're in; build the window
     vr = Tk()
     vr.attributes( '-alpha', parms.bg_alpha ) # set transparency
     vr.attributes( '-topmost', 1 ) # force it to stay on top (so user doesn't lose it)
     vr.geometry(parms.vr_geometry)
     vr.resizable( False, False )
     vr.title(parms.vr_title)
-    vr.iconbitmap( 'VideoGrabberIcon.ico' )  
+    #vr.iconbitmap('VideoGrabberIcon.ico')
+    vr.iconbitmap(default='VideoGrabberIcon.ico')
 
     # frame for start button
     fr1 = Frame( master=vr, padx = 8, pady = 8 )
@@ -305,7 +322,8 @@ if __name__ == '__main__':
 
     vr.update()
 
-    loopy = asyncio.get_event_loop()
+    #loopy = asyncio.get_event_loop()
+    loopy = asyncio.new_event_loop()
 
     if( check_obs( ) ): # if OBS start ok, then we can proceed
         # set up an interface to OBS Studio
@@ -323,7 +341,7 @@ if __name__ == '__main__':
 
         btn_start['state'] = NORMAL
         
-        if debug: print( 'all set; entering the tk forever loop' )
+        if debug: print( 'all set; entering the tk mainloop' )
     else:
         show_app_status( 'ERROR: OBS could not be started. Restart me.', parms.text_warn_color)
         vr.update()
